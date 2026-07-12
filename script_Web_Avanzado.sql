@@ -90,7 +90,7 @@ INSERT INTO dbo.Usuarios (Nombre, Email, PasswordHash, RolId, Estado)
 SELECT
     'Administrador Inicial',
     'admin@proyecto.local',
-    '12345',
+    '$2a$11$NhDtr6SG0nQW.nF3gjjYbekexE0vaRqEEABKrz0E9AolrCJIOOQr6',
     r.RolId,
     'A'
 FROM dbo.Roles r

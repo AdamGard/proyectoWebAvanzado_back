@@ -74,7 +74,7 @@ namespace proyectoWebAvanzado.Services.Implementaciones
             {
                 Nombre = dto.Nombre,
                 Email = dto.Email,
-                PasswordHash = dto.Password,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 RolId = dto.RolId,
                 Estado = "A",
                 FechaRegistro = DateTime.Now,

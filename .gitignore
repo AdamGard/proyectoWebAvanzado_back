@@ -1,0 +1,12 @@
+# Carpetas temporales de Visual Studio y VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Carpetas de compilación (Binarios)
+bin/
+obj/
+
+# Archivos de configuración locales o secretos (opcional si usas Docker/secretos)
+.env
