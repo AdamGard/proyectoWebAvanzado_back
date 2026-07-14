@@ -1,0 +1,19 @@
+services:
+  api:
+    container_name: proyecto-web-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=ProyectoWebAvanzadoDB;User=root;Password=${HOST_DB_PASSWORD};CharSet=utf8mb4;SslMode=None;"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ProyectoWebAvanzadoAPI
+      Jwt__Audience: ProyectoWebAvanzadoFrontEnd
+      Jwt__ExpireMinutes: "120"
+    ports:
+      - "5246:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

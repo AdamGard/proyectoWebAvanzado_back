@@ -1,0 +1,44 @@
+services:
+  mariadb:
+    container_name: proyecto-web-mariadb
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ProyectoWebAvanzadoDB
+      MARIADB_USER: proyecto_app
+      MARIADB_PASSWORD: ${MARIADB_APP_PASSWORD}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./docker/init/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    container_name: proyecto-web-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=mariadb;Port=3306;Database=ProyectoWebAvanzadoDB;User=proyecto_app;Password=${MARIADB_APP_PASSWORD};CharSet=utf8mb4;SslMode=None;"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ProyectoWebAvanzadoAPI
+      Jwt__Audience: ProyectoWebAvanzadoFrontEnd
+      Jwt__ExpireMinutes: "120"
+    ports:
+      - "5246:8080"
+
+volumes:
+  mariadb_data:

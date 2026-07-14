@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+.git/
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+*.user
+*.suo
+*.log
+.data-protection-keys/
+Dockerfile.*
+docker-compose*.yml
+README_DOCKER.md

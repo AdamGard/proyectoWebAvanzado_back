@@ -10,3 +10,8 @@ obj/
 
 # Archivos de configuración locales o secretos (opcional si usas Docker/secretos)
 .env
+.env.*
+!.env.example
+appsettings.Development.json
+**/appsettings.Development.json
+**/.data-protection-keys/
