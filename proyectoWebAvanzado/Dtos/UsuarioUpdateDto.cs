@@ -10,6 +10,7 @@ namespace proyectoWebAvanzado.Dtos
         [EmailAddress, MaxLength(120)]
         public string? Email { get; set; }
 
+        [MinLength(5)]
         public string? Password { get; set; }
 
         // Al ser int?, si el front no lo envía, será null y no se actualizará

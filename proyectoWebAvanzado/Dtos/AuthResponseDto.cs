@@ -2,8 +2,10 @@
 {
     public class AuthResponseDto
     {
-        public string Token { get; set; }
-        public string UsuarioNombre { get; set; }
-        public string RolNombre { get; set; }
+        public string Token { get; set; } = null!;
+        public int UsuarioId { get; set; }
+        public string UsuarioNombre { get; set; } = null!;
+        public string RolNombre { get; set; } = null!;
+        public DateTime ExpiraEn { get; set; }
     }
 }

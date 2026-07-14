@@ -10,7 +10,7 @@ namespace proyectoWebAvanzado.Dtos
         [Required, EmailAddress, MaxLength(120)]
         public string Email { get; set; } = null!;
 
-        [Required, MinLength(6)]
+        [Required, MinLength(5)]
         public string Password { get; set; } = null!; 
 
         [Required]

@@ -1,36 +1,76 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using proyectoWebAvanzado.Data;
+using proyectoWebAvanzado.Exceptions;
 using proyectoWebAvanzado.Services.Implementaciones;
 using proyectoWebAvanzado.Services.Interfaces;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+const string FrontendDevelopmentPolicy = "FrontendDevelopment";
 
-// Add services to the container.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys")));
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendDevelopmentPolicy, policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "http://localhost:54481")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("No se encontr贸 la cadena de conexi贸n 'DefaultConnection'.");
+
 builder.Services.AddDbContext<AppDBContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'AppDBContext' not found.")));
+{
+    options.UseMySql(
+        connectionString,
+        ServerVersion.AutoDetect(connectionString));
+});
+
 builder.Services.AddScoped<IUsuarioServices, UsuarioService>();
 builder.Services.AddScoped<IActividadServices, ActividadService>();
 builder.Services.AddScoped<IAuthServices, AuthService>();
+builder.Services.AddScoped<IRolServices, RolService>();
+builder.Services.AddScoped<IProgresoServices, ProgresoService>();
+
+builder.Services.AddAuthorization();
 
 var jwtkey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtkey))
+{
+    throw new InvalidOperationException("No se encontr贸 la clave Jwt:Key.");
+}
+
 var keyBytes = Encoding.UTF8.GetBytes(jwtkey);
 builder.Services.AddAuthentication(config =>
 {
-    // Le decimos a .NET que por defecto use JWT para validar identidades
     config.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     config.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(config =>
 {
-    config.RequireHttpsMetadata = false; // Solo en desarrollo (false)
+    config.RequireHttpsMetadata = false;
     config.SaveToken = true;
     config.TokenValidationParameters = new TokenValidationParameters
     {
@@ -40,24 +80,50 @@ builder.Services.AddAuthentication(config =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidateAudience = true,
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        ValidateLifetime = true, // Verifica que el token no haya expirado
-        ClockSkew = TimeSpan.Zero // Evita que .NET a馻da 5 minutos de gracia por defecto a la expiraci髇
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
     };
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var exception = exceptionFeature?.Error;
+        var statusCode = exception is ApiException apiException
+            ? apiException.StatusCode
+            : StatusCodes.Status500InternalServerError;
 
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+
+        var problem = new
+        {
+            status = statusCode,
+            title = exception is ApiException ? exception.Message : "Ocurri贸 un error inesperado.",
+            traceId = context.TraceIdentifier
+        };
+
+        await context.Response.WriteAsJsonAsync(problem);
+    });
+});
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+app.UseCors(FrontendDevelopmentPolicy);
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

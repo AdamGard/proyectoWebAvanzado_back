@@ -1,111 +1,143 @@
 /*
-  Script minimo inicial - Proyecto Web Avanzado
-  Motor: SQL Server
-  Objetivo: Crear tablas base para Roles, Usuarios y Actividades
+  Script inicial - Proyecto Web Avanzado
+  Motor: MariaDB
+  Objetivo: Crear la base de datos, tablas, relaciones y datos semilla.
 */
 
--- 1) Crear base de datos (opcional si ya existe)
-IF DB_ID('ProyectoWebAvanzadoDB') IS NULL
-BEGIN
-    CREATE DATABASE ProyectoWebAvanzadoDB;
-END;
-GO
+CREATE DATABASE IF NOT EXISTS ProyectoWebAvanzadoDB
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 
 USE ProyectoWebAvanzadoDB;
-GO
 
--- 2) Eliminar tablas en orden seguro (solo para ambiente de desarrollo)
-IF OBJECT_ID('dbo.Actividades', 'U') IS NOT NULL DROP TABLE dbo.Actividades;
-IF OBJECT_ID('dbo.Usuarios', 'U') IS NOT NULL DROP TABLE dbo.Usuarios;
-IF OBJECT_ID('dbo.Roles', 'U') IS NOT NULL DROP TABLE dbo.Roles;
-GO
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS Progresos;
+DROP TABLE IF EXISTS Actividades;
+DROP TABLE IF EXISTS Usuarios;
+DROP TABLE IF EXISTS Roles;
+SET FOREIGN_KEY_CHECKS = 1;
 
--- 3) Tabla centralizada de roles
-CREATE TABLE dbo.Roles (
-    RolId INT IDENTITY(1,1) NOT NULL,
-    Nombre NVARCHAR(50) NOT NULL,
-    Descripcion NVARCHAR(200) NULL,
-    Estado CHAR NOT NULL CONSTRAINT DF_Roles_Estado DEFAULT ('A'),
-    FechaCreacion DATETIME2(0) NOT NULL CONSTRAINT DF_Roles_FechaCreacion DEFAULT (SYSDATETIME()),
+CREATE TABLE Roles (
+    RolId INT NOT NULL AUTO_INCREMENT,
+    Nombre VARCHAR(50) NOT NULL,
+    Descripcion VARCHAR(200) NULL,
+    Estado CHAR(1) NOT NULL DEFAULT 'A',
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT PK_Roles PRIMARY KEY (RolId),
     CONSTRAINT UQ_Roles_Nombre UNIQUE (Nombre),
     CONSTRAINT CK_Roles_Estado CHECK (Estado IN ('A', 'I', 'N'))
-);
-GO
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4) Tabla de usuarios
-CREATE TABLE dbo.Usuarios (
-    UsuarioId INT IDENTITY(1,1) NOT NULL,
-    Nombre NVARCHAR(120) NOT NULL,
-    Email NVARCHAR(120) NOT NULL,
-    PasswordHash NVARCHAR(255) NOT NULL,
+CREATE TABLE Usuarios (
+    UsuarioId INT NOT NULL AUTO_INCREMENT,
+    Nombre VARCHAR(120) NOT NULL,
+    Email VARCHAR(120) NOT NULL,
+    PasswordHash VARCHAR(255) NOT NULL,
     RolId INT NOT NULL,
-    Estado NVARCHAR(1) NOT NULL CONSTRAINT DF_Usuarios_Estado DEFAULT ('A'),
-    FechaRegistro DATE NOT NULL CONSTRAINT DF_Usuarios_FechaRegistro DEFAULT (CAST(GETDATE() AS DATE)),
-    FechaActualizacion DATETIME2(0) NOT NULL CONSTRAINT DF_Usuarios_FechaActualizacion DEFAULT (SYSDATETIME()),
+    Estado CHAR(1) NOT NULL DEFAULT 'A',
+    FechaRegistro DATE NOT NULL DEFAULT CURRENT_DATE,
+    FechaActualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT PK_Usuarios PRIMARY KEY (UsuarioId),
     CONSTRAINT UQ_Usuarios_Email UNIQUE (Email),
-    CONSTRAINT FK_Usuarios_Roles FOREIGN KEY (RolId) REFERENCES dbo.Roles(RolId),
+    CONSTRAINT FK_Usuarios_Roles FOREIGN KEY (RolId) REFERENCES Roles(RolId) ON DELETE RESTRICT,
     CONSTRAINT CK_Usuarios_Estado CHECK (Estado IN ('A', 'I', 'N'))
-);
-GO
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5) Tabla de actividades
-CREATE TABLE dbo.Actividades (
-    ActividadId INT IDENTITY(1,1) NOT NULL,
-    Nombre NVARCHAR(150) NOT NULL,
-    Tipo NVARCHAR(50) NOT NULL,
-    Nivel NVARCHAR(30) NOT NULL,
-    Estado NVARCHAR(1) NOT NULL CONSTRAINT DF_Actividades_Estado DEFAULT ('A'),
+CREATE TABLE Actividades (
+    ActividadId INT NOT NULL AUTO_INCREMENT,
+    Nombre VARCHAR(150) NOT NULL,
+    Tipo VARCHAR(50) NOT NULL,
+    Nivel VARCHAR(30) NOT NULL,
+    Estado CHAR(1) NOT NULL DEFAULT 'A',
     Fecha DATE NOT NULL,
     ResponsableUsuarioId INT NULL,
-    FechaCreacion DATETIME2(0) NOT NULL CONSTRAINT DF_Actividades_FechaCreacion DEFAULT (SYSDATETIME()),
-    FechaActualizacion DATETIME2(0) NOT NULL CONSTRAINT DF_Actividades_FechaActualizacion DEFAULT (SYSDATETIME()),
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FechaActualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT PK_Actividades PRIMARY KEY (ActividadId),
-    CONSTRAINT FK_Actividades_Responsable FOREIGN KEY (ResponsableUsuarioId) REFERENCES dbo.Usuarios(UsuarioId),
+    CONSTRAINT FK_Actividades_Responsable FOREIGN KEY (ResponsableUsuarioId) REFERENCES Usuarios(UsuarioId) ON DELETE SET NULL,
     CONSTRAINT CK_Actividades_Estado CHECK (Estado IN ('A', 'I', 'N')),
     CONSTRAINT CK_Actividades_Nivel CHECK (Nivel IN ('Inicial', 'Basico', 'Intermedio', 'Avanzado'))
-);
-GO
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6) Indices utiles para consultas comunes
-CREATE INDEX IX_Usuarios_RolId ON dbo.Usuarios (RolId);
-CREATE INDEX IX_Usuarios_Estado ON dbo.Usuarios (Estado);
-CREATE INDEX IX_Actividades_Estado ON dbo.Actividades (Estado);
-CREATE INDEX IX_Actividades_ResponsableUsuarioId ON dbo.Actividades (ResponsableUsuarioId);
-GO
+CREATE TABLE Progresos (
+    ProgresoId INT NOT NULL AUTO_INCREMENT,
+    UsuarioId INT NOT NULL,
+    ActividadId INT NOT NULL,
+    AvancePorcentaje DECIMAL(5,2) NOT NULL DEFAULT 0,
+    Nivel VARCHAR(30) NOT NULL,
+    Estado CHAR(1) NOT NULL DEFAULT 'A',
+    FechaRegistro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FechaActualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_Progresos PRIMARY KEY (ProgresoId),
+    CONSTRAINT UQ_Progresos_Usuario_Actividad UNIQUE (UsuarioId, ActividadId),
+    CONSTRAINT FK_Progresos_Usuarios FOREIGN KEY (UsuarioId) REFERENCES Usuarios(UsuarioId) ON DELETE CASCADE,
+    CONSTRAINT FK_Progresos_Actividades FOREIGN KEY (ActividadId) REFERENCES Actividades(ActividadId) ON DELETE CASCADE,
+    CONSTRAINT CK_Progresos_Avance CHECK (AvancePorcentaje BETWEEN 0 AND 100),
+    CONSTRAINT CK_Progresos_Estado CHECK (Estado IN ('A', 'I', 'N'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7) Datos semilla minimos de roles
-INSERT INTO dbo.Roles (Nombre, Descripcion, Estado)
+CREATE INDEX IX_Usuarios_RolId ON Usuarios (RolId);
+CREATE INDEX IX_Usuarios_Estado ON Usuarios (Estado);
+CREATE INDEX IX_Actividades_Estado ON Actividades (Estado);
+CREATE INDEX IX_Actividades_ResponsableUsuarioId ON Actividades (ResponsableUsuarioId);
+CREATE INDEX IX_Progresos_UsuarioId ON Progresos (UsuarioId);
+CREATE INDEX IX_Progresos_ActividadId ON Progresos (ActividadId);
+
+INSERT INTO Roles (Nombre, Descripcion, Estado)
 VALUES
 ('Admin', 'Control total de la plataforma', 'A'),
 ('Docente', 'Gestiona actividades y seguimiento academico', 'A'),
 ('Padre', 'Consulta avance y participa en seguimiento', 'A');
-GO
 
--- 8) Usuario administrador inicial
--- Contraseña real: 12345  (ya viene hasheada con el PasswordHasher de ASP.NET Core Identity,
--- que es el mismo algoritmo que usa el backend para verificar el login)
-INSERT INTO dbo.Usuarios (Nombre, Email, PasswordHash, RolId, Estado)
+INSERT INTO Usuarios (Nombre, Email, PasswordHash, RolId, Estado)
 SELECT
     'Administrador Inicial',
     'admin@proyecto.local',
-    '$2a$11$NhDtr6SG0nQW.nF3gjjYbekexE0vaRqEEABKrz0E9AolrCJIOOQr6',
-    r.RolId,
+    '$2a$11$aAGEL0Ni2JhILGNGoKShOesglqDp.O2ovuQhrZewv7w/mahXwNx0G',
+    RolId,
     'A'
-FROM dbo.Roles r
-WHERE r.Nombre = 'Admin';
-GO
+FROM Roles
+WHERE Nombre = 'Admin';
 
--- 9) Consulta rapida de verificacion
-SELECT 'Roles' AS Tabla, COUNT(*) AS Total FROM dbo.Roles
-UNION ALL
-SELECT 'Usuarios', COUNT(*) FROM dbo.Usuarios
-UNION ALL
-SELECT 'Actividades', COUNT(*) FROM dbo.Actividades;
-GO
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Reconocer vocales', 'Letras', 'Inicial', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
 
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Contar del 1 al 10', 'Numeros', 'Inicial', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
+
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Memoria', 'Juego educativo', 'Inicial', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
+
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Colores', 'Juego educativo', 'Inicial', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
+
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Rompecabezas', 'Juego educativo', 'Intermedio', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
+
+INSERT INTO Actividades (Nombre, Tipo, Nivel, Estado, Fecha, ResponsableUsuarioId)
+SELECT 'Asociacion', 'Juego educativo', 'Intermedio', 'A', CURDATE(), UsuarioId
+FROM Usuarios
+WHERE Email = 'admin@proyecto.local';
+
+SELECT 'Roles' AS Tabla, COUNT(*) AS Total FROM Roles
+UNION ALL
+SELECT 'Usuarios', COUNT(*) FROM Usuarios
+UNION ALL
+SELECT 'Actividades', COUNT(*) FROM Actividades
+UNION ALL
+SELECT 'Progresos', COUNT(*) FROM Progresos;
 
 SELECT * FROM Roles;
-SELECT * FROM Usuarios;
+SELECT UsuarioId, Nombre, Email, RolId, Estado, FechaRegistro FROM Usuarios;
 SELECT * FROM Actividades;
+SELECT * FROM Progresos;

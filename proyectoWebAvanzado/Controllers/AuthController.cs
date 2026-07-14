@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using proyectoWebAvanzado.Dtos;
 using proyectoWebAvanzado.Services.Interfaces;
@@ -10,19 +10,20 @@ namespace proyectoWebAvanzado.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthServices _authServices;
-        
+
         public AuthController(IAuthServices authServices)
         {
             _authServices = authServices;
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto dto)
         {
-            var response = await _authServices.LoignAsync(dto);
-            if(response == null)
+            var response = await _authServices.LoginAsync(dto);
+            if (response == null)
             {
-                return Unauthorized(new {mensaje = "Correo o contraseña incorrecto"});
+                return Unauthorized(new { mensaje = "Correo o contraseña incorrectos" });
             }
             return Ok(response);
         }

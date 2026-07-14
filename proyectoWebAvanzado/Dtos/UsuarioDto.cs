@@ -8,5 +8,6 @@
         public int RolId { get; set; }
         public string RolNombre { get; set; } = null!; // Para mostrar el texto del rol
         public string Estado { get; set; } = null!;
+        public DateTime FechaRegistro { get; set; }
     }
 }
